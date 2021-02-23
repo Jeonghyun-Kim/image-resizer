@@ -20,6 +20,7 @@ export const config = {
 };
 
 interface RequestWithFile extends NextApiRequest {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   file: any;
 }
 
@@ -32,7 +33,7 @@ const handler: (
 
     if (!req.file) return res.status(400).send('empty image');
 
-    const { width, height } = req.body;
+    const { width, height, fit } = req.body;
 
     if (!width || !height) {
       return res.status(400).send('missing width, height');
@@ -41,6 +42,20 @@ const handler: (
     if (!isDecimal(width) || !isDecimal(height))
       return res.status(400).send('non-decimal width or height');
 
+    if (!fit) {
+      return res.status(400).send('missing fit');
+    }
+
+    if (
+      fit !== 'cover' &&
+      fit !== 'contain' &&
+      fit !== 'fill' &&
+      fit !== 'inside' &&
+      fit !== 'outside'
+    ) {
+      return res.status(400).send('invalid fit');
+    }
+
     const imageBuffer = req.file.buffer as Buffer;
 
     const resizedBuffer = await sharp(imageBuffer)
@@ -48,7 +63,7 @@ const handler: (
       .resize({
         width: Number(width),
         height: Number(height),
-        fit: 'cover',
+        fit,
       })
       .jpeg({ quality: 75 })
       .withMetadata()
