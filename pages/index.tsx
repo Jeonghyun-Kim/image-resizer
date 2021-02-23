@@ -316,6 +316,7 @@ const Home: React.FC = () => {
           <Button
             variant="contained"
             color="primary"
+            disabled={loading}
             onClick={() =>
               convertImage(imageFile, size, quality, fit, targetName)
             }
