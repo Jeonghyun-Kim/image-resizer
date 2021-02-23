@@ -65,7 +65,7 @@ const handler: (
         height: Number(height),
         fit,
       })
-      .jpeg({ quality: 75 })
+      .jpeg({ quality: 75, chromaSubsampling: '4:4:4' })
       .withMetadata()
       .toBuffer();
     // .toFile('./public/test/test.jpg');
