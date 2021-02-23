@@ -65,12 +65,6 @@ const Home: React.FC = () => {
   const downloadButtonRef = React.useRef<HTMLAnchorElement>(null);
 
   const handleImageChange: (file: File) => void = React.useCallback((file) => {
-    if (!file) return;
-
-    if (file.size >= 4.5 * 1024 * 1024) {
-      return window.alert('파일 사이즈 초과 (4.5MB)');
-    }
-
     const reader = new FileReader();
     reader.onloadend = async () => {
       const dimensions = await sizeOf(reader.result as string);
@@ -184,6 +178,15 @@ const Home: React.FC = () => {
               e.preventDefault();
               if (e.target.files) {
                 const file = e.target.files[0];
+
+                if (!file) return;
+
+                if (file.size >= 4.3 * 1000 * 1000) {
+                  window.alert('파일 사이즈 초과 (4.3MB)');
+                  e.target.value = '';
+                  return;
+                }
+
                 handleImageChange(file);
               }
             }}
