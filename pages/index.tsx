@@ -19,6 +19,13 @@ const Root = styled.div`
   padding: 2rem;
 `;
 
+const MySelect = styled(Select)`
+  .MuiSelect-outlined {
+    width: 4rem;
+    padding: 0.5rem 1rem;
+  }
+`;
+
 const sizeOf: (
   url: string,
 ) => Promise<{ width: number; height: number }> = async (url) => {
@@ -201,7 +208,9 @@ const Home: React.FC = () => {
         </div>
         <div className="my-2 space-x-2">
           <h2 className="text-xl mb-2">핏</h2>
-          <Select
+          <MySelect
+            variant="outlined"
+            autoWidth
             value={fit}
             onChange={(e) => {
               setFit(e.target.value as string);
@@ -212,7 +221,7 @@ const Home: React.FC = () => {
             <MenuItem value="fill">fill</MenuItem>
             <MenuItem value="inside">inside</MenuItem>
             <MenuItem value="outside">outside</MenuItem>
-          </Select>
+          </MySelect>
         </div>
         <div className="my-4">
           <Button
