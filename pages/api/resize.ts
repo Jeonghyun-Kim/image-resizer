@@ -35,11 +35,14 @@ const handler: (
 
     const { width, height, fit } = req.body;
 
-    if (!width || !height) {
-      return res.status(400).send('missing width, height');
+    if (!width && !height) {
+      return res.status(400).send('missing width and height');
     }
 
-    if (!isDecimal(width) || !isDecimal(height))
+    if (
+      (width.length && !isDecimal(width)) ||
+      (height.length && !isDecimal(height))
+    )
       return res.status(400).send('non-decimal width or height');
 
     if (!fit) {
@@ -61,8 +64,8 @@ const handler: (
     const resizedBuffer = await sharp(imageBuffer)
       .clone()
       .resize({
-        width: Number(width),
-        height: Number(height),
+        width: width ? Number(width) : undefined,
+        height: height ? Number(height) : undefined,
         fit,
       })
       .jpeg({ quality: 75, chromaSubsampling: '4:4:4' })

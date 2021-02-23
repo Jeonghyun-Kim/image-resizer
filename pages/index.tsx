@@ -87,9 +87,11 @@ const Home: React.FC = () => {
     setLoading(true);
     try {
       if (!imageFile) throw new Error('먼저 이미지 파일을 선택해주세요.');
-      if (!isDecimal(size.width))
+      if (!size.width && !size.height)
+        throw new Error('가로, 세로 중 최소 한 개는 입력해주세요.');
+      if (size.width.length && !isDecimal(size.width))
         throw new Error('가로길이가 올바르지 않습니다.');
-      if (!isDecimal(size.height))
+      if (size.height.length && !isDecimal(size.height))
         throw new Error('세로길이가 올바르지 않습니다.');
 
       const formData = new FormData();
@@ -111,7 +113,22 @@ const Home: React.FC = () => {
 
         const url = window.URL.createObjectURL(data);
         downloadButtonRef.current.href = url;
-        downloadButtonRef.current.download = `${imageFile.filename}_${size.width}x${size.height}_${fit}.jpg`;
+        downloadButtonRef.current.download = `${imageFile.filename
+          .split('.')
+          .slice(0, -1)
+          .join('.')}_${
+          size.width ||
+          (
+            (Number(size.height) * imageFile?.size.width) /
+            imageFile?.size.height
+          ).toFixed(0)
+        }x${
+          size.height ||
+          (
+            (Number(size.width) * imageFile?.size.height) /
+            imageFile?.size.width
+          ).toFixed(0)
+        }_${fit}.jpg`;
         downloadButtonRef.current.click();
         window.URL.revokeObjectURL(url);
 
@@ -178,7 +195,9 @@ const Home: React.FC = () => {
           </div>
         </div>
         <div className="my-2 space-x-2">
-          <h2 className="text-xl mb-2">사이즈</h2>
+          <h2 className="text-xl mb-2">
+            사이즈 (하나만 입력 시 원본 비율 유지)
+          </h2>
           <Input
             variant="outlined"
             size="small"
