@@ -67,8 +67,8 @@ const Home: React.FC = () => {
   const handleImageChange: (file: File) => void = React.useCallback((file) => {
     if (!file) return;
 
-    if (file.size >= 4.7 * 1024 * 1024) {
-      return window.alert('파일 사이즈 초과');
+    if (file.size >= 4.5 * 1024 * 1024) {
+      return window.alert('파일 사이즈 초과 (4.5MB)');
     }
 
     const reader = new FileReader();
