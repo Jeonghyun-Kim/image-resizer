@@ -50,7 +50,6 @@ const handler: (
       quality &&
       (!isDecimal(quality) || Number(quality) > 100 || Number(quality) < 1)
     ) {
-      console.log(quality);
       return res.status(400).send('invalid quality value (1 - 100)');
     }
 
