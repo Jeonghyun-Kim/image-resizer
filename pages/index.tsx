@@ -5,6 +5,7 @@ import isDecimal from 'validator/lib/isDecimal';
 import Button from '@material-ui/core/Button';
 import Text from '@material-ui/core/Typography';
 import Input from '@material-ui/core/TextField';
+import Slider from '@material-ui/core/Slider';
 import Select from '@material-ui/core/Select';
 import MenuItem from '@material-ui/core/MenuItem';
 
@@ -26,6 +27,16 @@ const MySelect = styled(Select)`
   }
 `;
 
+type ImageFile = {
+  file: File;
+  filename: string;
+  src: string;
+  size: {
+    width: number;
+    height: number;
+  };
+};
+
 const sizeOf: (
   url: string,
 ) => Promise<{ width: number; height: number }> = async (url) => {
@@ -39,26 +50,21 @@ const sizeOf: (
 };
 
 const Home: React.FC = () => {
+  const [imageFile, setImageFile] = React.useState<ImageFile | null>(null);
   const [size, setSize] = React.useState<{ width: string; height: string }>({
     width: '',
     height: '',
   });
   const [fit, setFit] = React.useState<string>('cover');
+  const [quality, setQuality] = React.useState<number>(75);
   const [loading, setLoading] = React.useState<boolean>(false);
-  const [imageFile, setImageFile] = React.useState<{
-    file: File;
-    filename: string;
-    src: string;
-    size: {
-      width: number;
-      height: number;
-    };
-  } | null>(null);
-  // const [inputSize, setInputSize] = React.useState<{ width: number; height: number } | null>(null)
+  const [targetName, setTargetName] = React.useState<string>('');
+
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const filenameInputRef = React.useRef<HTMLInputElement>(null);
   const downloadButtonRef = React.useRef<HTMLAnchorElement>(null);
 
-  const handleImageChange = (file: File) => {
+  const handleImageChange: (file: File) => void = React.useCallback((file) => {
     if (!file) return;
 
     if (file.size >= 4.7 * 1024 * 1024) {
@@ -81,70 +87,85 @@ const Home: React.FC = () => {
     };
 
     reader.readAsDataURL(file);
-  };
+  }, []);
 
-  const convertImage = async () => {
-    setLoading(true);
-    try {
-      if (!imageFile) throw new Error('먼저 이미지 파일을 선택해주세요.');
-      if (!size.width && !size.height)
-        throw new Error('가로, 세로 중 최소 한 개는 입력해주세요.');
-      if (size.width.length && !isDecimal(size.width))
-        throw new Error('가로길이가 올바르지 않습니다.');
-      if (size.height.length && !isDecimal(size.height))
-        throw new Error('세로길이가 올바르지 않습니다.');
-
-      const formData = new FormData();
-      formData.append('image', imageFile.file);
-      formData.append('width', size.width);
-      formData.append('height', size.height);
-      formData.append('fit', fit);
-      const response = await fetch('/api/resize', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      if (downloadButtonRef.current) {
-        const data = await response.blob();
-
-        const url = window.URL.createObjectURL(data);
-        downloadButtonRef.current.href = url;
-        downloadButtonRef.current.download = `${imageFile.filename
-          .split('.')
-          .slice(0, -1)
-          .join('.')}_${
-          size.width ||
-          (
-            (Number(size.height) * imageFile?.size.width) /
-            imageFile?.size.height
-          ).toFixed(0)
-        }x${
-          size.height ||
-          (
-            (Number(size.width) * imageFile?.size.height) /
-            imageFile?.size.width
-          ).toFixed(0)
-        }_${fit}.jpg`;
-        downloadButtonRef.current.click();
-        window.URL.revokeObjectURL(url);
-
-        setImageFile(null);
-        setSize({ width: '', height: '' });
-        if (inputRef.current) {
-          inputRef.current.value = '';
-        }
-      }
-    } catch (err) {
-      console.log(err);
-      window.alert(err.message);
-    } finally {
-      setLoading(false);
+  const handleClear = React.useCallback(() => {
+    setImageFile(null);
+    setSize({ width: '', height: '' });
+    setTargetName('');
+    // setQuality(75);
+    if (inputRef.current) {
+      inputRef.current.value = '';
     }
-  };
+  }, []);
+
+  const convertImage: (
+    imageFile: ImageFile | null,
+    size: { width: string; height: string },
+    quality: number,
+    fit: string,
+    targetName: string,
+  ) => Promise<void> = React.useCallback(
+    async (imageFile, size, quality, fit, targetName) => {
+      setLoading(true);
+      try {
+        if (!imageFile) throw new Error('먼저 이미지 파일을 선택해주세요.');
+        if (!size.width && !size.height)
+          throw new Error('가로, 세로 중 최소 한 개는 입력해주세요.');
+        if (size.width.length && !isDecimal(size.width))
+          throw new Error('가로길이가 올바르지 않습니다.');
+        if (size.height.length && !isDecimal(size.height))
+          throw new Error('세로길이가 올바르지 않습니다.');
+
+        const formData = new FormData();
+        formData.append('image', imageFile.file);
+        formData.append('width', size.width);
+        formData.append('height', size.height);
+        formData.append('quality', String(quality));
+        formData.append('fit', fit);
+        const response = await fetch('/api/resize', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        if (downloadButtonRef.current) {
+          const data = await response.blob();
+
+          const url = window.URL.createObjectURL(data);
+          downloadButtonRef.current.href = url;
+          downloadButtonRef.current.download = targetName
+            ? `${targetName}.jpg`
+            : `${imageFile.filename.split('.').slice(0, -1).join('.')}_${
+                size.width ||
+                (
+                  (Number(size.height) * imageFile.size.width) /
+                  imageFile.size.height
+                ).toFixed(0)
+              }x${
+                size.height ||
+                (
+                  (Number(size.width) * imageFile.size.height) /
+                  imageFile.size.width
+                ).toFixed(0)
+              }_${fit}.jpg`;
+          downloadButtonRef.current.click();
+          window.URL.revokeObjectURL(url);
+
+          handleClear();
+        }
+      } catch (err) {
+        console.log(err);
+        window.alert(err.message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [handleClear],
+  );
 
   return (
     <>
@@ -174,11 +195,12 @@ const Home: React.FC = () => {
             {imageFile ? (
               <NextImage
                 src={imageFile.src}
-                className="bg-gray-500"
+                className="bg-gray-500 cursor-pointer"
                 width={256}
                 height={256}
                 objectFit="contain"
                 loading="eager"
+                onClick={() => inputRef.current?.click()}
               />
             ) : (
               <div
@@ -189,8 +211,12 @@ const Home: React.FC = () => {
               </div>
             )}
             <div>
-              <Text>가로: {imageFile ? imageFile.size.width : 'null'}</Text>
-              <Text>세로: {imageFile ? imageFile.size.height : 'null'}</Text>
+              <Text>
+                가로: {imageFile ? `${imageFile.size.width} px` : 'null'}
+              </Text>
+              <Text>
+                세로: {imageFile ? `${imageFile.size.height} px` : 'null'}
+              </Text>
             </div>
           </div>
         </div>
@@ -226,6 +252,20 @@ const Home: React.FC = () => {
           />
         </div>
         <div className="my-2 space-x-2">
+          <h2 className="text-xl mb-2">퀄리티 (80 이하 권장): {quality}</h2>
+          <div className="w-96">
+            <Slider
+              max={100}
+              min={1}
+              value={quality}
+              // marks
+              // getAriaValueText={(val) => String(val)}
+              valueLabelDisplay="auto"
+              onChange={(_, newValue) => setQuality(newValue as number)}
+            />
+          </div>
+        </div>
+        <div className="my-2 space-x-2">
           <h2 className="text-xl mb-2">핏</h2>
           <MySelect
             variant="outlined"
@@ -242,11 +282,43 @@ const Home: React.FC = () => {
             <MenuItem value="outside">outside</MenuItem>
           </MySelect>
         </div>
+        <div className="my-2 space-x-2">
+          <h2 className="text-xl mb-2">저장할 이름 (선택, 확장자 없이)</h2>
+          <Input
+            variant="outlined"
+            InputProps={{ style: { width: '25rem' } }}
+            size="small"
+            label="파일명"
+            placeholder={
+              imageFile
+                ? `${imageFile.filename.split('.').slice(0, -1).join('.')}_${
+                    size.width ||
+                    (
+                      (Number(size.height) * imageFile.size.width) /
+                      imageFile.size.height
+                    ).toFixed(0)
+                  }x${
+                    size.height ||
+                    (
+                      (Number(size.width) * imageFile.size.height) /
+                      imageFile.size.width
+                    ).toFixed(0)
+                  }_${fit}`
+                : undefined
+            }
+            inputRef={filenameInputRef}
+            autoComplete="off"
+            value={targetName}
+            onChange={(e) => setTargetName(e.target.value)}
+          />
+        </div>
         <div className="my-4">
           <Button
             variant="contained"
             color="primary"
-            onClick={() => convertImage()}
+            onClick={() =>
+              convertImage(imageFile, size, quality, fit, targetName)
+            }
           >
             send
           </Button>

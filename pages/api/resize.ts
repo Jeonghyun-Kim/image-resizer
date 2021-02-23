@@ -33,7 +33,7 @@ const handler: (
 
     if (!req.file) return res.status(400).send('empty image');
 
-    const { width, height, fit } = req.body;
+    const { width, height, quality, fit } = req.body;
 
     if (!width && !height) {
       return res.status(400).send('missing width and height');
@@ -42,8 +42,17 @@ const handler: (
     if (
       (width.length && !isDecimal(width)) ||
       (height.length && !isDecimal(height))
-    )
+    ) {
       return res.status(400).send('non-decimal width or height');
+    }
+
+    if (
+      quality &&
+      (!isDecimal(quality) || Number(quality) > 100 || Number(quality) < 1)
+    ) {
+      console.log(quality);
+      return res.status(400).send('invalid quality value (1 - 100)');
+    }
 
     if (!fit) {
       return res.status(400).send('missing fit');
@@ -68,7 +77,10 @@ const handler: (
         height: height ? Number(height) : undefined,
         fit,
       })
-      .jpeg({ quality: 75, chromaSubsampling: '4:4:4' })
+      .jpeg({
+        quality: quality ? Number(quality) : 75,
+        chromaSubsampling: '4:4:4',
+      })
       .withMetadata()
       .toBuffer();
     // .toFile('./public/test/test.jpg');
