@@ -1,10 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import multer from 'multer';
 import sharp from 'sharp';
-import isDecimal from 'validator/lib/isDecimal';
 
 import withErrorHandler from '@utils/withErrorHandler';
 import runMiddleware from '@utils/runMiddleware';
+import { validateResizeConfig } from '@utils/validator';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -35,38 +35,11 @@ const handler: (
 
     const { width, height, quality, fit } = req.body;
 
-    if (!width && !height) {
-      return res.status(400).send('missing width and height');
+    if (!validateResizeConfig({ width, height, quality, fit })) {
+      return res.status(400).send('validation falied');
     }
 
-    if (
-      (width.length && !isDecimal(width)) ||
-      (height.length && !isDecimal(height))
-    ) {
-      return res.status(400).send('non-decimal width or height');
-    }
-
-    if (
-      quality &&
-      (!isDecimal(quality) || Number(quality) > 100 || Number(quality) < 1)
-    ) {
-      return res.status(400).send('invalid quality value (1 - 100)');
-    }
-
-    if (!fit) {
-      return res.status(400).send('missing fit');
-    }
-
-    if (
-      fit !== 'cover' &&
-      fit !== 'contain' &&
-      fit !== 'fill' &&
-      fit !== 'inside' &&
-      fit !== 'outside'
-    ) {
-      return res.status(400).send('invalid fit');
-    }
-
+    // TODO: make imageResizeUtils?
     const imageBuffer = req.file.buffer as Buffer;
 
     const resizedBuffer = await sharp(imageBuffer)

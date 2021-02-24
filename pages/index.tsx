@@ -11,6 +11,7 @@ import MenuItem from '@material-ui/core/MenuItem';
 
 // importing components
 import { Head } from '@components/core';
+import uploadImage from '@lib/uploadImage';
 
 // importing libraries
 
@@ -50,6 +51,7 @@ const sizeOf: (
 };
 
 const Home: React.FC = () => {
+  // TODO: add detailed progress info. (size test -> uploading, resizing ?)
   const [imageFile, setImageFile] = React.useState<ImageFile | null>(null);
   const [size, setSize] = React.useState<{ width: string; height: string }>({
     width: '',
@@ -63,6 +65,7 @@ const Home: React.FC = () => {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const filenameInputRef = React.useRef<HTMLInputElement>(null);
   const downloadButtonRef = React.useRef<HTMLAnchorElement>(null);
+  const awsFlag = React.useRef<boolean>(false);
 
   const handleImageChange: (file: File) => void = React.useCallback((file) => {
     const reader = new FileReader();
@@ -88,6 +91,7 @@ const Home: React.FC = () => {
     setSize({ width: '', height: '' });
     setTargetName('');
     // setQuality(75);
+    awsFlag.current = false;
     if (inputRef.current) {
       inputRef.current.value = '';
     }
@@ -112,18 +116,47 @@ const Home: React.FC = () => {
           throw new Error('세로길이가 올바르지 않습니다.');
 
         const formData = new FormData();
-        formData.append('image', imageFile.file);
-        formData.append('width', size.width);
-        formData.append('height', size.height);
-        formData.append('quality', String(quality));
-        formData.append('fit', fit);
-        const response = await fetch('/api/resize', {
-          method: 'POST',
-          body: formData,
-        });
+
+        let response: Response;
+
+        if (awsFlag.current === false) {
+          formData.append('image', imageFile.file);
+          formData.append('width', size.width);
+          formData.append('height', size.height);
+          formData.append('quality', String(quality));
+          formData.append('fit', fit);
+          response = await fetch('/api/resize', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error(await response.text());
+          }
+        } else {
+          const { key } = await uploadImage(imageFile.file, {
+            onStart: () => {},
+            onEnd: () => {},
+          });
+
+          response = await fetch('/api/resize/aws', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              key,
+              width: size.width,
+              height: size.height,
+              quality: String(quality),
+              fit,
+            }),
+          });
+        }
 
         if (!response.ok) {
-          throw new Error(await response.text());
+          const text = await response.text();
+          throw new Error(text);
         }
 
         if (downloadButtonRef.current) {
@@ -174,7 +207,7 @@ const Home: React.FC = () => {
             ref={inputRef}
             type="file"
             accept="image/x-png,image/gif,image/jpeg, image/png"
-            onChange={(e) => {
+            onChange={async (e) => {
               e.preventDefault();
               if (e.target.files) {
                 const file = e.target.files[0];
@@ -182,9 +215,9 @@ const Home: React.FC = () => {
                 if (!file) return;
 
                 if (file.size >= 4.3 * 1000 * 1000) {
-                  window.alert('파일 사이즈 초과 (4.3MB)');
-                  e.target.value = '';
-                  return;
+                  awsFlag.current = true;
+                } else {
+                  awsFlag.current = false;
                 }
 
                 handleImageChange(file);
