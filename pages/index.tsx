@@ -61,6 +61,7 @@ const Home: React.FC = () => {
   const [quality, setQuality] = React.useState<number>(75);
   const [loading, setLoading] = React.useState<boolean>(false);
   const [targetName, setTargetName] = React.useState<string>('');
+  const [progressList, setProgressList] = React.useState<string[]>([]);
 
   const inputRef = React.useRef<HTMLInputElement>(null);
   const filenameInputRef = React.useRef<HTMLInputElement>(null);
@@ -97,6 +98,13 @@ const Home: React.FC = () => {
     }
   }, []);
 
+  const addProgress: (newProgress: string) => void = React.useCallback(
+    (newProgress) => {
+      setProgressList((prev) => [...prev, newProgress]);
+    },
+    [],
+  );
+
   const convertImage: (
     imageFile: ImageFile | null,
     size: { width: string; height: string },
@@ -106,6 +114,8 @@ const Home: React.FC = () => {
   ) => Promise<void> = React.useCallback(
     async (imageFile, size, quality, fit, targetName) => {
       setLoading(true);
+      setProgressList([]);
+
       try {
         if (!imageFile) throw new Error('먼저 이미지 파일을 선택해주세요.');
         if (!size.width && !size.height)
@@ -115,30 +125,40 @@ const Home: React.FC = () => {
         if (size.height.length && !isDecimal(size.height))
           throw new Error('세로길이가 올바르지 않습니다.');
 
+        addProgress('유효성 검사 완료');
+
         const formData = new FormData();
 
         let response: Response;
 
         if (awsFlag.current === false) {
+          addProgress('<작은 이미지> -> 즉시 변환 가능');
           formData.append('image', imageFile.file);
           formData.append('width', size.width);
           formData.append('height', size.height);
           formData.append('quality', String(quality));
           formData.append('fit', fit);
+
+          addProgress('업로드 시작');
           response = await fetch('/api/resize', {
             method: 'POST',
             body: formData,
           });
+          addProgress('업로드 및 변환 완료');
 
           if (!response.ok) {
             throw new Error(await response.text());
           }
         } else {
+          addProgress('<큰 이미지> -> AWS 업로드 후 변환');
+          addProgress('AWS 업로드 시작');
           const { key } = await uploadImage(imageFile.file, {
             onStart: () => {},
             onEnd: () => {},
           });
+          addProgress('AWS 업로드 완료');
 
+          addProgress('AWS으로부터 다운로드 및 변환 시작');
           response = await fetch('/api/resize/aws', {
             method: 'POST',
             headers: {
@@ -152,6 +172,7 @@ const Home: React.FC = () => {
               fit,
             }),
           });
+          addProgress('변환 완료');
         }
 
         if (!response.ok) {
@@ -160,6 +181,7 @@ const Home: React.FC = () => {
         }
 
         if (downloadButtonRef.current) {
+          addProgress('파일 저장 시작');
           const data = await response.blob();
 
           const url = window.URL.createObjectURL(data);
@@ -181,6 +203,7 @@ const Home: React.FC = () => {
               }_${fit}.jpg`;
           downloadButtonRef.current.click();
           window.URL.revokeObjectURL(url);
+          addProgress('파일 저장 완료');
 
           handleClear();
         }
@@ -191,7 +214,7 @@ const Home: React.FC = () => {
         setLoading(false);
       }
     },
-    [handleClear],
+    [addProgress, handleClear],
   );
 
   return (
@@ -361,7 +384,9 @@ const Home: React.FC = () => {
           </Button>
         </div>
         <div className="my-4">
-          <Text>{loading && '로딩중...'}</Text>
+          {progressList.map((progress, idx) => (
+            <div key={`progress-${idx}`}>{progress}</div>
+          ))}
         </div>
       </Root>
     </>
