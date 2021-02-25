@@ -51,7 +51,7 @@ const sizeOf: (
 };
 
 const Home: React.FC = () => {
-  // TODO: add detailed progress info. (size test -> uploading, resizing ?)
+  const [dragOverFlag, setDragOverFlag] = React.useState<boolean>(false);
   const [imageFile, setImageFile] = React.useState<ImageFile | null>(null);
   const [size, setSize] = React.useState<{ width: string; height: string }>({
     width: '',
@@ -69,6 +69,12 @@ const Home: React.FC = () => {
   const awsFlag = React.useRef<boolean>(false);
 
   const handleImageChange: (file: File) => void = React.useCallback((file) => {
+    if (file.size >= 4.3 * 1000 * 1000) {
+      awsFlag.current = true;
+    } else {
+      awsFlag.current = false;
+    }
+
     const reader = new FileReader();
     reader.onloadend = async () => {
       const dimensions = await sizeOf(reader.result as string);
@@ -217,13 +223,64 @@ const Home: React.FC = () => {
     [addProgress, handleClear],
   );
 
+  React.useEffect(() => {
+    const dragOverHandler = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      setDragOverFlag(true);
+    };
+
+    const dragLeaveHandler = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      setDragOverFlag(false);
+    };
+
+    const dropHandler = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverFlag(false);
+      if (!e.dataTransfer) return;
+      const droppedFile = e.dataTransfer.files[0];
+
+      if (!droppedFile) return;
+
+      if (droppedFile.size >= 4.3 * 1000 * 1000) {
+        awsFlag.current = true;
+      } else {
+        awsFlag.current = false;
+      }
+
+      handleImageChange(droppedFile);
+    };
+
+    document.addEventListener('dragover', dragOverHandler);
+    document.addEventListener('dragleave', dragLeaveHandler);
+    document.addEventListener('drop', dropHandler);
+
+    return () => {
+      document.removeEventListener('dragover', dragOverHandler);
+      document.removeEventListener('dragleave', dragLeaveHandler);
+      document.removeEventListener('drop', dropHandler);
+    };
+  }, [handleImageChange]);
+
+  if (dragOverFlag)
+    return (
+      <div className="flex w-screen h-screen justify-center items-center">
+        drop an image here
+      </div>
+    );
+
   return (
     <>
       <Head>
         <title>Kay&apos;s Image Resizer</title>
       </Head>
       <Root>
-        <h1 className="text-3xl mb-4">Image resizer</h1>
+        <h1 className="text-3xl mb-4">Kay&apos;s Image Resizer</h1>
         <div>
           <a ref={downloadButtonRef} className="hidden" />
           <input
@@ -236,12 +293,6 @@ const Home: React.FC = () => {
                 const file = e.target.files[0];
 
                 if (!file) return;
-
-                if (file.size >= 4.3 * 1000 * 1000) {
-                  awsFlag.current = true;
-                } else {
-                  awsFlag.current = false;
-                }
 
                 handleImageChange(file);
               }
@@ -342,7 +393,7 @@ const Home: React.FC = () => {
           </MySelect>
         </div>
         <div className="my-2 space-x-2">
-          <h2 className="text-xl mb-2">저장할 이름 (선택, 확장자 없이)</h2>
+          <h2 className="text-xl mb-2">저장할 이름 (선택 항목, 확장자 없이)</h2>
           <Input
             variant="outlined"
             InputProps={{ style: { width: '25rem' } }}
