@@ -16,9 +16,10 @@ import uploadImage from '@lib/uploadImage';
 // importing libraries
 
 const Root = styled.div`
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
 `;
 
 const MySelect = styled(Select)`
@@ -269,8 +270,8 @@ const Home: React.FC = () => {
 
   if (dragOverFlag)
     return (
-      <div className="flex w-screen h-screen justify-center items-center">
-        drop an image here
+      <div className="flex w-screen h-screen justify-center items-center text-4xl">
+        이미지를 끌어다 놓으세요
       </div>
     );
 
@@ -363,7 +364,7 @@ const Home: React.FC = () => {
         </div>
         <div className="my-2 space-x-2">
           <h2 className="text-xl mb-2">퀄리티 (80 이하 권장): {quality}</h2>
-          <div className="w-96">
+          <div className="w-96 max-w-full">
             <Slider
               max={100}
               min={1}
@@ -396,7 +397,9 @@ const Home: React.FC = () => {
           <h2 className="text-xl mb-2">저장할 이름 (선택 항목, 확장자 없이)</h2>
           <Input
             variant="outlined"
-            InputProps={{ style: { width: '25rem' } }}
+            style={{ width: '25rem', maxWidth: '100%' }}
+            // InputProps={{ style: { width: '25rem', maxWidth: '100%' } }}
+            fullWidth
             size="small"
             label="파일명"
             placeholder={
